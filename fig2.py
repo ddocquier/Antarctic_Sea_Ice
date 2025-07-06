@@ -12,15 +12,15 @@ Time series saved via save_timeseries_obs.py
 
 Variables:
 Summer sea-ice extent (DJF)
-Previous winter/spring sea-ice extent (JAS or OND)
-Previous Antarctic mean surface air temperature (<60S; JAS or OND)
-Previous Antarctic mean SST (<60S; JAS or OND)
-Previous Southern Annular Mode (SAM; JAS or OND)
-Previous Amundsen Sea Low (ASL; JAS or OND)
-Previous Niño3.4 (JAS or OND)
-Previous DMI (JAS or OND)
+Previous winter/spring sea-ice extent (JAS, SON or OND)
+Previous Antarctic mean surface air temperature (<60S; JAS, SON or OND)
+Previous Antarctic mean SST (<60S; JAS, SON or OND)
+Previous Southern Annular Mode (SAM; JAS, SON or OND)
+Previous Amundsen Sea Low (ASL; JAS, SON or OND)
+Previous Niño3.4 (JAS, SON or OND)
+Previous DMI (JAS, SON or OND)
 
-Last updated: 15/01/2025
+Last updated: 24/06/2025
 
 @author: David Docquier
 """
@@ -30,16 +30,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Options
-season = 'OND' # JAS (previous winter), OND (previous spring; default)
+season = 'OND' # JAS (previous winter), SON (previous spring) or OND (previous spring; default)
 if season == 'JAS':
     string_season = 'Winter'
-elif season == 'OND':
+elif season == 'OND' or season == 'SON':
     string_season = 'Spring'
 save_fig = True
 
 # Working directories
-dir_input = '/home/dadocq/Documents/Papers/My_Papers/RESIST_Antarctic/output/seasons/'
-dir_fig = '/home/dadocq/Documents/Papers/My_Papers/RESIST_Antarctic/LaTeX/'
+dir_input = '/home/ddocquier/Documents/Papers/My_Papers/RESIST_Antarctic/output/seasons/'
+dir_fig = '/home/ddocquier/Documents/Papers/My_Papers/RESIST_Antarctic/LaTeX/'
 
 # Load EC-Earth3 variables
 filename = dir_input + 'EC-Earth3_Antarctic_timeseries_' + season + '.npy'
@@ -91,7 +91,7 @@ ax[0,0].set_xticklabels(name_xticks)
 ax[0,0].tick_params(labelsize=20)
 ax[0,0].legend(loc='upper right',fontsize=22,shadow=True,frameon=False,ncol=2)
 ax[0,0].grid(linestyle='--')
-ax[0,0].axis([-1, 133, -0.5, 15])
+ax[0,0].axis([-1, 133, -0.5, 16])
 ax[0,0].set_title('a',loc='left',fontsize=30,fontweight='bold')
 
 # Previous sea-ice extent
@@ -112,7 +112,7 @@ ax[0,1].set_xticklabels(name_xticks)
 ax[0,1].tick_params(labelsize=20)
 ax[0,1].legend(loc='lower left',fontsize=22,shadow=True,frameon=False,ncol=2)
 ax[0,1].grid(linestyle='--')
-ax[0,1].axis([-1, 133, -1, 24])
+ax[0,1].axis([-1, 133, -1, 23])
 ax[0,1].set_title('b',loc='left',fontsize=30,fontweight='bold')
 
 # Previous surface air temperature
@@ -121,7 +121,7 @@ ax[0,2].plot(np.arange(np.size(tas_canesm,1))+1,np.nanmean(tas_canesm,axis=0),'-
 ax[0,2].plot(np.arange(np.size(tas_cesm,1))+1,np.nanmean(tas_cesm,axis=0),'-',color='blue',linewidth=4,label='CESM2')
 ax[0,2].plot(np.arange(np.size(tas_ecearth,1))+1,np.nanmean(tas_ecearth,axis=0),'-',color='red',linewidth=4,label='EC-Earth3')
 ax[0,2].plot(np.arange(np.size(tas_mpi,1))+1,np.nanmean(tas_mpi,axis=0),'-',color='gray',linewidth=4,label='MPI-ESM1.2-LR')
-ax[0,2].plot(np.arange(np.size(tas_obs))+1,tas_obs,'k.-',linewidth=2,label='Observations')
+ax[0,2].plot(np.arange(np.size(tas_obs))+13,tas_obs,'k.-',linewidth=2,label='Reanalysis')
 ax[0,2].fill_between(np.arange(np.size(tas_ecearth,1))+1,np.nanmin(tas_ecearth,axis=0),np.nanmax(tas_ecearth,axis=0),color='red',alpha=0.1)
 ax[0,2].fill_between(np.arange(np.size(tas_cesm,1))+1,np.nanmin(tas_cesm,axis=0),np.nanmax(tas_cesm,axis=0),color='blue',alpha=0.1)
 ax[0,2].fill_between(np.arange(np.size(tas_mpi,1))+1,np.nanmin(tas_mpi,axis=0),np.nanmax(tas_mpi,axis=0),color='gray',alpha=0.1)
@@ -133,7 +133,7 @@ ax[0,2].set_xticklabels(name_xticks)
 ax[0,2].tick_params(labelsize=20)
 ax[0,2].legend(loc='upper left',fontsize=22,shadow=True,frameon=False,ncol=2)
 ax[0,2].grid(linestyle='--')
-ax[0,2].axis([-1, 133, -10, 4])
+ax[0,2].axis([-1, 133, -8, 4])
 ax[0,2].set_title('c',loc='left',fontsize=30,fontweight='bold')
 
 # Previous SST
@@ -175,7 +175,7 @@ ax[1,1].set_xticks(xrange)
 ax[1,1].set_xticklabels(name_xticks)
 ax[1,1].tick_params(labelsize=20)
 ax[1,1].grid(linestyle='--')
-ax[1,1].axis([-1, 133, -5, 5])
+ax[1,1].axis([-1, 133, -4, 5])
 ax[1,1].legend(loc='upper left',fontsize=22,shadow=True,frameon=False,ncol=2)
 ax[1,1].set_title('e',loc='left',fontsize=30,fontweight='bold')
 

@@ -10,7 +10,7 @@ Time series saved via save_timeseries.py for total Antarctic
 Observations
 Time series saved via save_timeseries_obs.py for total Antarctic
 
-Last updated: 12/02/2025
+Last updated: 23/06/2025
 
 @author: David Docquier
 """
@@ -22,10 +22,10 @@ from netCDF4 import Dataset
 np.bool = np.bool_
 
 # Options
-driver = 'sst_mon' # SIE, tas_mon, sst_mon, mld_mon, tauv
-season = 'OND' # JAS (previous winter), OND (previous spring; default)
+driver = 'SIE' # SIE, tas_mon, sst_mon, mld_mon, tauv
+season = 'SON' # JAS (previous winter), SON (previous spring), OND (previous spring; default)
 nmy = 12 # number of months in a year
-save_fig = True
+save_fig = False
 save_var = True
 
 # String driver
@@ -52,6 +52,9 @@ if season == 'JAS':
 elif season == 'OND':
     index_start = 9
     index_end = 12
+elif season == 'SON':
+    index_start = 8
+    index_end = 11
     
 # Interpolate NaN values
 def interpolate_nan(array_like):
@@ -66,13 +69,13 @@ def interpolate_nan(array_like):
     return array
 
 # Working directories
-dir_input = '/home/dadocq/Documents/Models/'
-dir_input2 = '/home/dadocq/Documents/Papers/My_Papers/RESIST_Antarctic/output/seasons/'
-dir_osisaf = '/home/dadocq/Documents/Observations/OSISAF/' # Observed sea-ice extent
-dir_hadcrut5 = '/home/dadocq/Documents/Observations/HadCRUT5/' # Observed air temperature
-dir_ostia = '/home/dadocq/Documents/Observations/OSTIA/' # Observed SST
+dir_input = '/home/ddocquier/Documents/Models/'
+dir_input2 = '/home/ddocquier/Documents/Papers/My_Papers/RESIST_Antarctic/output/seasons/'
+dir_osisaf = '/home/ddocquier/Documents/Observations/OSISAF/' # Observed sea-ice extent
+dir_era5 = '/home/ddocquier/Documents/Observations/ERA5/' # Observed air temperature
+dir_ostia = '/home/ddocquier/Documents/Observations/OSTIA/' # Observed SST
 dir_output = dir_input2
-dir_fig = '/home/dadocq/Documents/Papers/My_Papers/RESIST_Antarctic/LaTeX/'
+dir_fig = '/home/ddocquier/Documents/Papers/My_Papers/RESIST_Antarctic/LaTeX/'
 
 # Load Antarctic EC-Earth3
 filename = dir_input2 + 'EC-Earth3_Antarctic_timeseries_' + season + '.npy'
@@ -384,100 +387,64 @@ if driver == 'SIE':
 
 elif driver == 'tas_mon':
     
-    # Load monthly mean surface temperature anomalies from HadCRUT5 1970-2023
-    # https://crudata.uea.ac.uk/cru/data//temperature/
-    filename = dir_hadcrut5 + 'HadCRUT.5.0.2.0.analysis.anomalies.ensemble_mean.nc'
+    # Load monthly mean surface temperature from ERA5 1982-2023 and convert into degC
+    # https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels-monthly-means?tab=overview
+    filename = dir_era5 + 'T2m_ERA5_1982-2023_Monthly_60-90S.nc'
     fh = Dataset(filename, mode='r')
-    tas_obs_ano = fh.variables['tas_mean'][:] # 1850-2023
-    start_mon_hadcrut5 = int((1970-1850)*12) # 1970
-    end_mon_hadcrut5 = int((2023-1850+1)*12) # 2023
-    tas_obs_ano = tas_obs_ano[start_mon_hadcrut5:end_mon_hadcrut5,:,:] # 1970-2023
+    tas_obs_init = fh.variables['t2m'][:]
     lon_init = fh.variables['longitude'][:]
     lat_init = fh.variables['latitude'][:]
-    lon_hadcrut5,lat_hadcrut5 = np.meshgrid(lon_init,lat_init)
+    lon_era5,lat_era5 = np.meshgrid(lon_init,lat_init)
     fh.close()
-    nm_obs = np.size(tas_obs_ano,0)
+    tas_obs_init = tas_obs_init - 273.15
+    nm_obs = np.size(tas_obs_init,0)
+    nyears_obs = int(2023-1982+1)
     
-    # Load monthly seasonal cycle of absolute surface temperature from HadCRUT5 (average over 1961-1990)
-    # https://crudata.uea.ac.uk/cru/data//temperature/
-    filename = dir_hadcrut5 + 'absolute_v5.nc'
+    # Load SST ERA5 (for land-sea mask)
+    filename = dir_era5 + 'SST_ERA5_Jan1982_60-90S.nc'
     fh = Dataset(filename, mode='r')
-    tas_obs_cycle = fh.variables['tem'][:]
+    sst_era5 = fh.variables['sst'][0,:,:]
     fh.close()
     
-    # Load grid area HadCRUT5
-    filename = dir_hadcrut5 + 'gridarea_hadcrut5.nc'
+    # Load grid area ERA5
+    filename = dir_era5 + 'ERA5_gridarea.nc'
     fh = Dataset(filename, mode='r')
-    grid_area_hadcrut5 = fh.variables['cell_area'][:] 
+    grid_area_era5 = fh.variables['cell_area'][:] 
     fh.close()
-    
-    # Load SST HadSST4 (for land-sea mask)
-    filename = dir_hadcrut5 + 'HadSST.4.0.1.0_median.nc'
-    fh = Dataset(filename, mode='r')
-    sst_hadsst4 = fh.variables['tos'][-3,:,:] # only February 2022 (minimum SIE)
-    fh.close()
-    
-    # Compute mean surface temperature anomalies from HadCRUT5 1970-2023
-    tas_bas_ano = np.zeros(nm_obs)
-    tas_ws_ano = np.zeros(nm_obs)
-    tas_io_ano = np.zeros(nm_obs)
-    tas_wpo_ano = np.zeros(nm_obs)
-    tas_rs_ano = np.zeros(nm_obs)
-    index1 = (lat_hadcrut5 <= -60.) * (lon_hadcrut5 >= 160.) * (lon_hadcrut5 <= 180.)
-    index2 = (lat_hadcrut5 <= -60.) * (lon_hadcrut5 >= -180.) * (lon_hadcrut5 <= -130.)
+        
+    # Compute mean surface temperature from ERA5 1982-2023
+    tas_bas = np.zeros(nm_obs)
+    tas_ws = np.zeros(nm_obs)
+    tas_io = np.zeros(nm_obs)
+    tas_wpo = np.zeros(nm_obs)
+    tas_rs = np.zeros(nm_obs)
+    index1 = (lat_era5 <= -60.) * (lon_era5 >= 160.) * (lon_era5 <= 180.)
+    index2 = (lat_era5 <= -60.) * (lon_era5 >= -180.) * (lon_era5 <= -130.)
     for mon in np.arange(nm_obs):
-        tas_obs_ano_masked = np.ma.MaskedArray(tas_obs_ano[mon,:,:],mask=np.isnan(tas_obs_ano[mon,:,:]))
-        tas_bas_ano[mon] = np.average(tas_obs_ano_masked * (lat_hadcrut5 <= -60.) * (lon_hadcrut5 >= -130.) * (lon_hadcrut5 <= -60.) * np.isfinite(sst_hadsst4),weights=grid_area_hadcrut5 * (lat_hadcrut5 <= -60.) * (lon_hadcrut5 >= -130.) * (lon_hadcrut5 <= -60.) * np.isfinite(sst_hadsst4))
-        tas_ws_ano[mon] = np.average(tas_obs_ano_masked * (lat_hadcrut5 <= -60.) * (lon_hadcrut5 >= -60.) * (lon_hadcrut5 <= 20.) * np.isfinite(sst_hadsst4),weights=grid_area_hadcrut5 * (lat_hadcrut5 <= -60.) * (lon_hadcrut5 >= -60.) * (lon_hadcrut5 <= 20.) * np.isfinite(sst_hadsst4))
-        tas_io_ano[mon] = np.average(tas_obs_ano_masked * (lat_hadcrut5 <= -60.) * (lon_hadcrut5 >= 20.) * (lon_hadcrut5 <= 90.) * np.isfinite(sst_hadsst4),weights=grid_area_hadcrut5 * (lat_hadcrut5 <= -60.) * (lon_hadcrut5 >= 20.) * (lon_hadcrut5 <= 90.) * np.isfinite(sst_hadsst4))
-        tas_wpo_ano[mon] = np.average(tas_obs_ano_masked * (lat_hadcrut5 <= -60.) * (lon_hadcrut5 >= 90.) * (lon_hadcrut5 <= 160.) * np.isfinite(sst_hadsst4),weights=grid_area_hadcrut5 * (lat_hadcrut5 <= -60.) * (lon_hadcrut5 >= 90.) * (lon_hadcrut5 <= 160.) * np.isfinite(sst_hadsst4))
-        tas_rs_ano[mon] = np.average(tas_obs_ano_masked * (index1 | index2) * np.isfinite(sst_hadsst4),weights=grid_area_hadcrut5 * (index1 | index2) * np.isfinite(sst_hadsst4))
+        tas_bas[mon] = np.average(tas_obs_init[mon,:,:] * (lat_era5 <= -60.) * (lon_era5 >= -130.) * (lon_era5 <= -60.) * np.isfinite(sst_era5),weights=grid_area_era5 * (lat_era5 <= -60.) * (lon_era5 >= -130.) * (lon_era5 <= -60.) * np.isfinite(sst_era5))
+        tas_ws[mon] = np.average(tas_obs_init[mon,:,:] * (lat_era5 <= -60.) * (lon_era5 >= -60.) * (lon_era5 <= 20.) * np.isfinite(sst_era5),weights=grid_area_era5 * (lat_era5 <= -60.) * (lon_era5 >= -60.) * (lon_era5 <= 20.) * np.isfinite(sst_era5))
+        tas_io[mon] = np.average(tas_obs_init[mon,:,:] * (lat_era5 <= -60.) * (lon_era5 >= 20.) * (lon_era5 <= 90.) * np.isfinite(sst_era5),weights=grid_area_era5 * (lat_era5 <= -60.) * (lon_era5 >= 20.) * (lon_era5 <= 90.) * np.isfinite(sst_era5))
+        tas_wpo[mon] = np.average(tas_obs_init[mon,:,:] * (lat_era5 <= -60.) * (lon_era5 >= 90.) * (lon_era5 <= 160.) * np.isfinite(sst_era5),weights=grid_area_era5 * (lat_era5 <= -60.) * (lon_era5 >= 90.) * (lon_era5 <= 160.) * np.isfinite(sst_era5))
+        tas_rs[mon] = np.average(tas_obs_init[mon,:,:] * (index1 | index2) * np.isfinite(sst_era5),weights=grid_area_era5 * (index1 | index2) * np.isfinite(sst_era5))
 
-    # Compute mean absolute surface temperature from HadCRUT5 (average over 1961-1990)
-    tas_bas_cycle = np.zeros(nmy)
-    tas_ws_cycle = np.zeros(nmy)
-    tas_io_cycle = np.zeros(nmy)
-    tas_wpo_cycle = np.zeros(nmy)
-    tas_rs_cycle = np.zeros(nmy)
-    for mon in np.arange(nmy):
-        tas_bas_cycle[mon] = np.average(tas_obs_cycle[mon,:,:] * (lat_hadcrut5 <= -60.) * (lon_hadcrut5 >= -130.) * (lon_hadcrut5 <= -60.) * np.isfinite(sst_hadsst4),weights=grid_area_hadcrut5 * (lat_hadcrut5 <= -60.) * (lon_hadcrut5 >= -130.) * (lon_hadcrut5 <= -60.) * np.isfinite(sst_hadsst4))
-        tas_ws_cycle[mon] = np.average(tas_obs_cycle[mon,:,:] * (lat_hadcrut5 <= -60.) * (lon_hadcrut5 >= -60.) * (lon_hadcrut5 <= 20.) * np.isfinite(sst_hadsst4),weights=grid_area_hadcrut5 * (lat_hadcrut5 <= -60.) * (lon_hadcrut5 >= -60.) * (lon_hadcrut5 <= 20.) * np.isfinite(sst_hadsst4))
-        tas_io_cycle[mon] = np.average(tas_obs_cycle[mon,:,:] * (lat_hadcrut5 <= -60.) * (lon_hadcrut5 >= 20.) * (lon_hadcrut5 <= 90.) * np.isfinite(sst_hadsst4),weights=grid_area_hadcrut5 * (lat_hadcrut5 <= -60.) * (lon_hadcrut5 >= 20.) * (lon_hadcrut5 <= 90.) * np.isfinite(sst_hadsst4))
-        tas_wpo_cycle[mon] = np.average(tas_obs_cycle[mon,:,:] * (lat_hadcrut5 <= -60.) * (lon_hadcrut5 >= 90.) * (lon_hadcrut5 <= 160.) * np.isfinite(sst_hadsst4),weights=grid_area_hadcrut5 * (lat_hadcrut5 <= -60.) * (lon_hadcrut5 >= 90.) * (lon_hadcrut5 <= 160.) * np.isfinite(sst_hadsst4))
-        tas_rs_cycle[mon] = np.average(tas_obs_cycle[mon,:,:] * (index1 | index2) * np.isfinite(sst_hadsst4),weights=grid_area_hadcrut5 * (index1 | index2) * np.isfinite(sst_hadsst4))
-
-    # Compute seasonal mean surface temperature anomalies from HadCRUT5 1970-2023
+    # Compute seasonal mean surface temperature from ERA5 1982-2023
     nyears_obs = int(nm_obs/nmy)
-    tas_bas_ano_mon = np.zeros((nyears_obs,nmy))
-    tas_ws_ano_mon = np.zeros((nyears_obs,nmy))
-    tas_io_ano_mon = np.zeros((nyears_obs,nmy))
-    tas_wpo_ano_mon = np.zeros((nyears_obs,nmy))
-    tas_rs_ano_mon = np.zeros((nyears_obs,nmy))
+    tas_bas_mon = np.zeros((nyears_obs,nmy))
+    tas_ws_mon = np.zeros((nyears_obs,nmy))
+    tas_io_mon = np.zeros((nyears_obs,nmy))
+    tas_wpo_mon = np.zeros((nyears_obs,nmy))
+    tas_rs_mon = np.zeros((nyears_obs,nmy))
     for mon in np.arange(nmy):
-        tas_bas_ano_mon[:,mon] = tas_bas_ano[mon::12]
-        tas_ws_ano_mon[:,mon] = tas_ws_ano[mon::12]
-        tas_io_ano_mon[:,mon] = tas_io_ano[mon::12]
-        tas_wpo_ano_mon[:,mon] = tas_wpo_ano[mon::12]
-        tas_rs_ano_mon[:,mon] = tas_rs_ano[mon::12]
-    tas_bas_ano_seasonalmean = np.nanmean(tas_bas_ano_mon[:,index_start:index_end],axis=1)
-    tas_ws_ano_seasonalmean = np.nanmean(tas_ws_ano_mon[:,index_start:index_end],axis=1)
-    tas_io_ano_seasonalmean = np.nanmean(tas_io_ano_mon[:,index_start:index_end],axis=1)
-    tas_wpo_ano_seasonalmean = np.nanmean(tas_wpo_ano_mon[:,index_start:index_end],axis=1)
-    tas_rs_ano_seasonalmean = np.nanmean(tas_rs_ano_mon[:,index_start:index_end],axis=1)
-    
-    # Compute seasonal mean absolute surface temperature from HadCRUT5 (average over 1961-1990)
-    tas_bas_cycle_seasonalmean = np.nanmean(tas_bas_cycle[index_start:index_end])
-    tas_ws_cycle_seasonalmean = np.nanmean(tas_ws_cycle[index_start:index_end])
-    tas_io_cycle_seasonalmean = np.nanmean(tas_io_cycle[index_start:index_end])
-    tas_wpo_cycle_seasonalmean = np.nanmean(tas_wpo_cycle[index_start:index_end])
-    tas_rs_cycle_seasonalmean = np.nanmean(tas_rs_cycle[index_start:index_end])
-    
-    # Compute seasonal mean absolute surface temperature from HadCRUT5 1970-2023
-    driver_period_obs_bas = tas_bas_ano_seasonalmean + tas_bas_cycle_seasonalmean
-    driver_period_obs_ws = tas_ws_ano_seasonalmean + tas_ws_cycle_seasonalmean
-    driver_period_obs_io = tas_io_ano_seasonalmean + tas_io_cycle_seasonalmean
-    driver_period_obs_wpo = tas_wpo_ano_seasonalmean + tas_wpo_cycle_seasonalmean
-    driver_period_obs_rs = tas_rs_ano_seasonalmean + tas_rs_cycle_seasonalmean
+        tas_bas_mon[:,mon] = tas_bas[mon::12]
+        tas_ws_mon[:,mon] = tas_ws[mon::12]
+        tas_io_mon[:,mon] = tas_io[mon::12]
+        tas_wpo_mon[:,mon] = tas_wpo[mon::12]
+        tas_rs_mon[:,mon] = tas_rs[mon::12]
+    driver_period_obs_bas = np.nanmean(tas_bas_mon[:,index_start:index_end],axis=1)
+    driver_period_obs_ws = np.nanmean(tas_ws_mon[:,index_start:index_end],axis=1)
+    driver_period_obs_io = np.nanmean(tas_io_mon[:,index_start:index_end],axis=1)
+    driver_period_obs_wpo = np.nanmean(tas_wpo_mon[:,index_start:index_end],axis=1)
+    driver_period_obs_rs = np.nanmean(tas_rs_mon[:,index_start:index_end],axis=1)
 
 elif driver == 'sst_mon':
     

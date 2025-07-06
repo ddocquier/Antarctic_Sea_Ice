@@ -2,7 +2,9 @@
 # -*- coding: utf-8 -*-
 
 """
-Figures 3 and 5: Plot Liang index and correlation from models over whole period (1970-2099) as well as observations (1982-2023)
+Figure 3: Plot Liang index and correlation from models over OND of whole period (1970-2099) as well as observations (1982-2023)
+Figure 5: Plot Liang index and correlation from models over JAS of whole period (1970-2099) as well as observations (1982-2023)
+Figure A1: Plot Liang index and correlation from models over SON of whole period (1970-2099) as well as observations (1982-2023)
 
 Model large ensembles: EC-Earth3 (SMHI-LENS), CESM2-LE, MPI-ESM1-2-LR, CanESM5, ACCESS-ESM1-5
 Liang index computed via compute_liang_seasons.py
@@ -21,7 +23,7 @@ Previous Amundsen Sea Low (ASL; JAS or OND)
 Previous Niño3.4 (JAS or OND)
 Previous DMI (JAS or OND)
 
-Last updated: 05/03/2024
+Last updated: 01/07/2025
 
 @author: David Docquier
 """
@@ -31,7 +33,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Parameters
-season = 'JAS' # JAS (previous winter), OND (previous spring)
+season = 'SON' # JAS (previous winter, Fig. 5), SON (previous spring, Fig. A1), OND (previous spring, Fig. 3)
 nvar = 8 # number of variables (1: SSIE; 2: PSIE; 3: T_2m; 4: SST; 5: SAM; 6: ASL; 7: ENSO; 8: DMI)
 n_iter = 1000 # number of bootstrap realizations; default: 1000
 conf = 2.57 # for models: 1.96 if 95% confidence interval (normal distribution); 1.65 if 90% and 2.57 if 99%
@@ -47,8 +49,8 @@ def compute_sig(var,error,conf):
     return sig
 
 # Working directories
-dir_input = '/home/dadocq/Documents/Papers/My_Papers/RESIST_Antarctic/output/seasons/'
-dir_fig = '/home/dadocq/Documents/Papers/My_Papers/RESIST_Antarctic/LaTeX/'
+dir_input = '/home/ddocquier/Documents/Papers/My_Papers/RESIST_Antarctic/output/seasons/'
+dir_fig = '/home/ddocquier/Documents/Papers/My_Papers/RESIST_Antarctic/LaTeX/'
 
 # Load SMHI-LENS
 filename = dir_input + 'Liang_SMHI-LENS_' + season + '_' + str(n_iter) + 'boot.npy'
@@ -70,39 +72,27 @@ tau_canesm,R_canesm,error_tau_canesm,error_R_canesm = np.load(filename,allow_pic
 filename = dir_input + 'Liang_ACCESS-ESM1-5_' + season + '_' + str(n_iter) + 'boot.npy'
 tau_access,R_access,error_tau_access,error_R_access = np.load(filename,allow_pickle=True)
 
-# Compute significance of SMHI-LENS and CESM2-LE
+# Compute significance of models
 sig_tau_ecearth = np.zeros((nvar,nvar))
 sig_R_ecearth = np.zeros((nvar,nvar))
 sig_tau_cesm = np.zeros((nvar,nvar))
 sig_R_cesm = np.zeros((nvar,nvar))
+sig_tau_mpi = np.zeros((nvar,nvar))
+sig_R_mpi = np.zeros((nvar,nvar))
+sig_tau_canesm = np.zeros((nvar,nvar))
+sig_R_canesm = np.zeros((nvar,nvar))
+sig_tau_access = np.zeros((nvar,nvar))
+sig_R_access = np.zeros((nvar,nvar))
 for i in np.arange(nvar):
     for j in np.arange(nvar):
         sig_tau_ecearth[i,j] = compute_sig(tau_ecearth[i,j],error_tau_ecearth[i,j],conf)
         sig_R_ecearth[i,j] = compute_sig(R_ecearth[i,j],error_R_ecearth[i,j],conf)
         sig_tau_cesm[i,j] = compute_sig(tau_cesm[i,j],error_tau_cesm[i,j],conf)
         sig_R_cesm[i,j] = compute_sig(R_cesm[i,j],error_R_cesm[i,j],conf)
-            
-# Compute significance of MPI-ESM1-2-LR
-sig_tau_mpi = np.zeros((nvar,nvar))
-sig_R_mpi = np.zeros((nvar,nvar))
-for i in np.arange(nvar):
-    for j in np.arange(nvar):
         sig_tau_mpi[i,j] = compute_sig(tau_mpi[i,j],error_tau_mpi[i,j],conf)
         sig_R_mpi[i,j] = compute_sig(R_mpi[i,j],error_R_mpi[i,j],conf)
-            
-# Compute significance of CanESM5
-sig_tau_canesm = np.zeros((nvar,nvar))
-sig_R_canesm = np.zeros((nvar,nvar))
-for i in np.arange(nvar):
-    for j in np.arange(nvar):
         sig_tau_canesm[i,j] = compute_sig(tau_canesm[i,j],error_tau_canesm[i,j],conf)
         sig_R_canesm[i,j] = compute_sig(R_canesm[i,j],error_R_canesm[i,j],conf)
-
-# Compute significance of ACCESS-ESM1-5
-sig_tau_access = np.zeros((nvar,nvar))
-sig_R_access = np.zeros((nvar,nvar))
-for i in np.arange(nvar):
-    for j in np.arange(nvar):
         sig_tau_access[i,j] = compute_sig(tau_access[i,j],error_tau_access[i,j],conf)
         sig_R_access[i,j] = compute_sig(R_access[i,j],error_R_access[i,j],conf)
 
@@ -250,6 +240,8 @@ ax[1].set_title('b',loc='left',fontsize=25,fontweight='bold')
 if save_fig == True:
     if season == 'OND':
         filename = dir_fig + 'fig3.pdf'
+    elif season == 'SON':
+        filename = dir_fig + 'fig_a1.pdf'
     elif season == 'JAS':
         filename = dir_fig + 'fig5.pdf'
     fig.savefig(filename)
