@@ -15,7 +15,7 @@ Previous Amundsen Sea Low (ASL)
 Previous Niño3.4
 Previous DMI
                            
-Last updated: 15/01/2025
+Last updated: 23/06/2025
 
 @author: David Docquier
 """
@@ -38,10 +38,10 @@ save_var = True
 
 # Working directories
 if model == 'SMHI-LENS':
-    dir_input = '/home/dadocq/Documents/Models/' + model + '/input/'
+    dir_input = '/home/ddocquier/Documents/Models/' + model + '/input/'
 else:
-    dir_input = '/home/dadocq/Documents/Models/' + model + '/'
-dir_output = '/home/dadocq/Documents/Papers/My_Papers/RESIST_Antarctic/output/seasons/'
+    dir_input = '/home/ddocquier/Documents/Models/' + model + '/'
+dir_output = '/home/ddocquier/Documents/Papers/My_Papers/RESIST_Antarctic/output/seasons/'
 
 # Number of members
 if model == 'SMHI-LENS' or model == 'CESM2-LE' or model == 'CanESM5' or model == 'MPI-ESM1-2-LR':

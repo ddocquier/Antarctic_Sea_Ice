@@ -13,7 +13,7 @@ Previous Amundsen Sea Low (ASL; JAS or OND)
 Previous Niño3.4 (JAS or OND)
 Previous DMI (JAS or OND)
 
-Last updated: 15/01/2025
+Last updated: 23/06/2025
 
 @author: David Docquier
 """
@@ -24,15 +24,18 @@ from netCDF4 import Dataset
 np.bool = np.bool_
 
 # Options
-season = 'OND' # JAS (previous winter), OND (previous spring)
+season = 'SON' # JAS (previous winter), OND (previous spring)
 if season == 'JAS':
     index_start = 6
     index_end = 9
 elif season == 'OND':
     index_start = 9
     index_end = 12
+elif season == 'SON':
+    index_start = 8
+    index_end = 11
 nmy = 12 # number of months in a year
-save_var = False
+save_var = True
 
 # Interpolate NaN values
 def interpolate_nan(array_like):
@@ -47,13 +50,13 @@ def interpolate_nan(array_like):
     return array
 
 # Working directories
-dir_osisaf = '/home/dadocq/Documents/Observations/OSISAF/' # Observed sea-ice extent
-dir_hadcrut5 = '/home/dadocq/Documents/Observations/HadCRUT5/' # Observed surface air temperature
-dir_ostia = '/home/dadocq/Documents/Observations/OSTIA/' # Observed SST
-dir_marshall = '/home/dadocq/Documents/Observations/SAM_Marshall/' # SAM index (Marshall index)
-dir_asl = '/home/dadocq/Documents/Observations/ASL/' # ASL index
-dir_indices = '/home/dadocq/Documents/Observations/NOAA_Indices/' # ENSO and DMI
-dir_output = '/home/dadocq/Documents/Papers/My_Papers/RESIST_Antarctic/output/seasons/'
+dir_osisaf = '/home/ddocquier/Documents/Observations/OSISAF/' # Observed sea-ice extent
+dir_era5 = '/home/ddocquier/Documents/Observations/ERA5/' # Observed surface air temperature
+dir_ostia = '/home/ddocquier/Documents/Observations/OSTIA/' # Observed SST
+dir_marshall = '/home/ddocquier/Documents/Observations/SAM_Marshall/' # SAM index (Marshall index)
+dir_asl = '/home/ddocquier/Documents/Observations/ASL/' # ASL index
+dir_indices = '/home/ddocquier/Documents/Observations/NOAA_Indices/' # ENSO and DMI
+dir_output = '/home/ddocquier/Documents/Papers/My_Papers/RESIST_Antarctic/output/seasons/'
 
 # Load monthly SIE from OSI SAF (OSI-420) 1979-2024 (until Nov 2024)
 # https://osi-saf.eumetsat.int/products/osi-420
@@ -82,61 +85,40 @@ for year in np.arange(1,nyears_obs+1):
         sie_conc_obs_summer = np.concatenate((sie_obs[year-1,11:12],sie_obs[year,0:2])) # concatenate DJF
     sie_obs_summer[year] = np.nanmean(sie_conc_obs_summer) # mean DJF
 
-# Load monthly mean surface temperature anomalies from HadCRUT5 1970-2023
-# https://crudata.uea.ac.uk/cru/data//temperature/
-filename = dir_hadcrut5 + 'HadCRUT.5.0.2.0.analysis.anomalies.ensemble_mean.nc'
+# Load monthly mean surface temperature from ERA5 1982-2023 and convert into degC
+# https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels-monthly-means?tab=overview
+filename = dir_era5 + 'T2m_ERA5_1982-2023_Monthly_60-90S.nc'
 fh = Dataset(filename, mode='r')
-tas_obs_ano = fh.variables['tas_mean'][:] # 1850-2023
-start_mon_hadcrut5 = int((1970-1850)*12) # 1970
-end_mon_hadcrut5 = int((2023-1850+1)*12) # 2023
-tas_obs_ano = tas_obs_ano[start_mon_hadcrut5:end_mon_hadcrut5,:,:] # 1970-2023
-lon_init = fh.variables['longitude'][:]
-lat_init = fh.variables['latitude'][:]
-lon_hadcrut5,lat_hadcrut5 = np.meshgrid(lon_init,lat_init)
+tas_obs_init = fh.variables['t2m'][:]
 fh.close()
-nm_hadcrut5 = np.size(tas_obs_ano,0)
+tas_obs_init = tas_obs_init - 273.15
+nm_era5 = np.size(tas_obs_init,0)
+nyears_obs2 = int(2023-1982+1)
 
-# Load monthly seasonal cycle of absolute surface temperature from HadCRUT5 (average over 1961-1990)
-# https://crudata.uea.ac.uk/cru/data//temperature/
-filename = dir_hadcrut5 + 'absolute_v5.nc'
+# Load SST ERA5 (for land-sea mask)
+filename = dir_era5 + 'SST_ERA5_Jan1982_60-90S.nc'
 fh = Dataset(filename, mode='r')
-tas_obs_cycle = fh.variables['tem'][:]
+sst_era5 = fh.variables['sst'][0,:,:]
 fh.close()
 
-# Load grid area HadCRUT5
-filename = dir_hadcrut5 + 'gridarea_hadcrut5.nc'
+# Load grid area ERA5
+filename = dir_era5 + 'ERA5_gridarea.nc'
 fh = Dataset(filename, mode='r')
-grid_area_hadcrut5 = fh.variables['cell_area'][:] 
+grid_area_era5 = fh.variables['cell_area'][:] 
 fh.close()
 
-# Load SST HadSST4 (for land-sea mask)
-filename = dir_hadcrut5 + 'HadSST.4.0.1.0_median.nc'
-fh = Dataset(filename, mode='r')
-sst_hadsst4 = fh.variables['tos'][-3,:,:] # only February 2022 (minimum SIE)
-fh.close()
+# Compute Antarctic mean surface temperature from ERA5 1982-2023
+tas_mean_obs = np.zeros(nm_era5)
+for mon in np.arange(nm_era5):
+    tas_mean_obs[mon] = np.average(tas_obs_init[mon,:,:] * np.isfinite(sst_era5),weights=grid_area_era5 * np.isfinite(sst_era5))
 
-# Compute Antarctic mean surface temperature anomalies from HadCRUT5 1970-2023
-tas_mean_obs_ano = np.zeros(nm_hadcrut5)
-for mon in np.arange(nm_hadcrut5):
-    tas_mean_obs_ano[mon] = np.average(tas_obs_ano[mon,:,:] * (lat_hadcrut5 <= -60.) * np.isfinite(sst_hadsst4),weights=grid_area_hadcrut5 * (lat_hadcrut5 <= -60.) * np.isfinite(sst_hadsst4))
-   
-# Compute Antarctic mean absolute surface temperature from HadCRUT5 (average over 1961-1990)
-tas_mean_obs_cycle = np.zeros(nmy)
+# Reshape surface air temperature data
+tas_mean_obs2 = np.zeros((nyears_obs2,nmy))
 for mon in np.arange(nmy):
-    tas_mean_obs_cycle[mon] = np.average(tas_obs_cycle[mon,:,:] * (lat_hadcrut5 <= -60.) * np.isfinite(sst_hadsst4),weights=grid_area_hadcrut5 * (lat_hadcrut5 <= -60.) * np.isfinite(sst_hadsst4))
- 
-# Compute seasonal mean (JAS/OND) surface temperature anomalies from HadCRUT5 1970-2023
-nyears_hadcrut5 = int(nm_hadcrut5/nmy)
-tas_mean_obs_ano_mon = np.zeros((nyears_hadcrut5,nmy))
-for mon in np.arange(nmy):
-    tas_mean_obs_ano_mon[:,mon] = tas_mean_obs_ano[mon::12]
-tas_mean_obs_ano_seasonalmean = np.nanmean(tas_mean_obs_ano_mon[:,index_start:index_end],axis=1)
-
-# Compute seasonal mean (JAS/OND) absolute surface temperature from HadCRUT5 (average over 1961-1990)
-tas_mean_obs_cycle_seasonalmean = np.nanmean(tas_mean_obs_cycle[index_start:index_end])
-
-# Compute seasonal mean (JAS/OND) absolute surface temperature from HadCRUT5 1970-2023
-tas_obs = tas_mean_obs_ano_seasonalmean + tas_mean_obs_cycle_seasonalmean
+    tas_mean_obs2[:,mon] = tas_mean_obs[mon::12]
+    
+# Compute seasonal mean surface air temperature (JAS or OND)
+tas_obs = np.nanmean(tas_mean_obs2[:,index_start:index_end],axis=1)
 
 # Load SST OSTIA 1982-2023 and convert into degC
 filename = dir_ostia + 'OSTIA_SST_SecZ83.lat-80to-60.1982to2023_1m.nc'
@@ -144,7 +126,7 @@ fh = Dataset(filename, mode='r')
 sst_obs_init = fh.variables['sst'][:,0]
 fh.close()
 sst_obs_init = sst_obs_init - 273.15
-nyears_obs2 = int(2023-1982+1)
+#nyears_obs2 = int(2023-1982+1)
 sst_obs_init2 = np.zeros((nyears_obs2,nmy))
 for mon in np.arange(nmy):
     sst_obs_init2[:,mon] = sst_obs_init[mon::12]
@@ -157,7 +139,9 @@ sst_obs = np.nanmean(sst_obs_init2[:,index_start:index_end],axis=1)
 filename = dir_marshall + 'newsam.1957.2023.txt'
 if season == 'JAS':
     sam_obs_init = np.loadtxt(filename,skiprows=15,usecols=(7,8,9))
-else:
+elif season == 'SON':
+    sam_obs_init = np.loadtxt(filename,skiprows=15,usecols=(9,10,11))
+elif season == 'OND':
     sam_obs_init = np.loadtxt(filename,skiprows=15,usecols=(10,11,12))
 nyears_noaa = np.size(sam_obs_init,0)
 sam_obs = np.nanmean(sam_obs_init,axis=1)
@@ -181,7 +165,9 @@ for year in np.arange(nyears_asl):
 filename = dir_indices + 'nino34.anom.data'
 if season == 'JAS':
     nino34_obs_init = np.loadtxt(filename,skiprows=23,max_rows=54,usecols=(7,8,9))
-else:
+elif season == 'SON':
+    nino34_obs_init = np.loadtxt(filename,skiprows=23,max_rows=54,usecols=(9,10,11))
+elif season == 'OND':
     nino34_obs_init = np.loadtxt(filename,skiprows=23,max_rows=54,usecols=(10,11,12))
 nino34_obs = np.nanmean(nino34_obs_init,axis=1)
 
