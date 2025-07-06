@@ -16,7 +16,7 @@ Previous Amundsen Sea Low (ASL)
 Previous Niño3.4
 Previous DMI
 
-Last updated: 05/03/2025
+Last updated: 23/06/2025
 
 @author: David Docquier
 """
@@ -30,12 +30,12 @@ import seaborn as sns # for creating a matrix plot
 from matplotlib.patches import Rectangle # for drawing rectangles around elements in a matrix
 
 # Import my functions
-sys.path.append('/home/dadocq/Documents/Codes/Liang/')
+sys.path.append('/home/ddocquier/Documents/Codes/Liang/')
 from function_liang_nvar import compute_liang_nvar
 
 # Parameters
-season = 'OND' # MAM, AMJ, MJJ, JJA, JAS, ASO, SON, OND / default: OND (spring) or JAS (winter)
-sector = 'bas' # bas (Bellingshausen-Amundsen Seas), ws (Weddell Sea), io (Indian Ocean), wpo (Western Pacific Ocean), rs (Ross Sea)
+season = 'SON' # MAM, AMJ, MJJ, JJA, JAS, ASO, SON, OND / default: OND (spring) or JAS (winter)
+sector = 'rs' # bas (Bellingshausen-Amundsen Seas), ws (Weddell Sea), io (Indian Ocean), wpo (Western Pacific Ocean), rs (Ross Sea)
 nvar = 8 # number of variables (1: SSIE; 2: PSIE; 3: T_2m; 4: SST; 5: SAM; 6: ASL; 7: ENSO; 8: DMI)
 dt = 1 # time step (years)
 n_iter = 1000 # number of bootstrap realizations
@@ -44,8 +44,8 @@ save_var = True
 save_fig = False
 
 # Working directories
-dir_input = '/home/dadocq/Documents/Papers/My_Papers/RESIST_Antarctic/output/seasons/'
-dir_fig = '/home/dadocq/Documents/Papers/My_Papers/RESIST_Antarctic/figures/seasons/sectors/'
+dir_input = '/home/ddocquier/Documents/Papers/My_Papers/RESIST_Antarctic/output/seasons/'
+dir_fig = '/home/ddocquier/Documents/Papers/My_Papers/RESIST_Antarctic/figures/seasons/sectors/'
 
 # Function to test significance (based on the confidence interval)
 def compute_sig(var,error,conf):
@@ -105,7 +105,6 @@ elif sector == 'rs':
 # Take same years for all variables - 1982-2023
 ssie = ssie[4::] # DJF 1982-1983 - DJF 2023-2024
 psie = psie[3::] # JAS/OND 1982 - JAS/OND 2023
-tas = tas[12::]
 sam = sam[12::]
 asl = asl[12::]
 nino = nino[12::]
@@ -162,10 +161,10 @@ for j in np.arange(nvar):
             tau_plot.add_patch(Rectangle((i+0.05,j+0.2),0.9,0.6,fill=False,edgecolor='blue',linewidth=3))
 tau_plot.set_xticklabels(tau_plot.get_xmajorticklabels(),fontsize=20)
 tau_plot.xaxis.set_ticks_position('top')
-tau_plot.set_xlabel('TO...',loc='left',fontsize=20)
+# tau_plot.set_xlabel('TO...',loc='left',fontsize=20)
 tau_plot.xaxis.set_label_position('top')
 tau_plot.set_yticklabels(tau_plot.get_ymajorticklabels(),fontsize=20)
-tau_plot.set_ylabel('FROM...',loc='top',fontsize=20)
+# tau_plot.set_ylabel('FROM...',loc='top',fontsize=20)
                    
 # Matrix of R
 R_annotations = np.round(R,2)

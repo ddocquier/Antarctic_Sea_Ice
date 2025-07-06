@@ -16,7 +16,7 @@ Previous Amundsen Sea Low (ASL)
 Previous Niño3.4
 Previous DMI
 
-Last updated: 15/01/2025
+Last updated: 30/06/2025
 
 @author: David Docquier
 """
@@ -29,13 +29,13 @@ import seaborn as sns # for creating a matrix plot
 from matplotlib.patches import Rectangle # for drawing rectangles around elements in a matrix
 
 # Import my functions
-sys.path.append('/home/dadocq/Documents/Codes/Liang/')
+sys.path.append('/home/ddocquier/Documents/Codes/Liang/')
 from function_liang_nvar_dx import compute_liang_nvar
 
 # Parameters
-season = 'OND' # MAM, AMJ, MJJ, JJA, JAS, ASO, SON, OND / default: OND (spring) or JAS (winter)
-sector = 'bas' # bas (Bellingshausen-Amundsen Seas), ws (Weddell Sea), io (Indian Ocean), wpo (Western Pacific Ocean), rs (Ross Sea)
-model = 'SMHI-LENS' # SMHI-LENS; CESM2-LE; MPI-ESM1-2-LR; CanESM5; ACCESS-ESM1-5
+season = 'SON' # MAM, AMJ, MJJ, JJA, JAS, ASO, SON, OND / default: OND (spring) or JAS (winter)
+sector = 'rs' # bas (Bellingshausen-Amundsen Seas), ws (Weddell Sea), io (Indian Ocean), wpo (Western Pacific Ocean), rs (Ross Sea)
+model = 'ACCESS-ESM1-5' # SMHI-LENS; CESM2-LE; MPI-ESM1-2-LR; CanESM5; ACCESS-ESM1-5
 if model == 'SMHI-LENS':
     string_model = 'EC-Earth3'
 elif model == 'CESM2-LE':
@@ -47,7 +47,7 @@ last_year = 2099 # last year included in the computation
 dt = 1 # time step (years)
 n_iter = 1000 # number of bootstrap realizations
 conf = 2.57 # 1.96 if 95% confidence interval (normal distribution); 1.65 if 90% and 2.57 if 99%
-compute_liang = True # True compute Liang index; False: load existing value
+compute_liang = True # True compute Liang index; False: load already computed variables
 save_var = True
 save_fig = False
 
@@ -64,8 +64,8 @@ def interpolate_nan(array_like):
     return array
 
 # Working directories
-dir_input = '/home/dadocq/Documents/Papers/My_Papers/RESIST_Antarctic/output/seasons/'
-dir_fig = '/home/dadocq/Documents/Papers/My_Papers/RESIST_Antarctic/figures/seasons/sectors/'
+dir_input = '/home/ddocquier/Documents/Papers/My_Papers/RESIST_Antarctic/output/seasons/'
+dir_fig = '/home/ddocquier/Documents/Papers/My_Papers/RESIST_Antarctic/figures/seasons/sectors/'
 
 # Number of members
 if model == 'SMHI-LENS' or model == 'CESM2-LE' or model == 'MPI-ESM1-2-LR' or model == 'CanESM5':
@@ -139,7 +139,7 @@ for m in np.arange(n_members):
 # Shift summer SIE to the left (so that it lags other variables)
 ssie = np.roll(ssie,-1,axis=1)
 
-# Take years of interest and save variables
+# Take years of interest
 ind_last_year = int(last_year-1970+1)
 nyears_new = ind_last_year
 ssie2 = np.zeros((n_members,nyears_new))
@@ -228,11 +228,14 @@ if compute_liang == True:
     error_R = np.zeros((nvar,nvar))
     xx = np.array((ssie_full,psie_full,tas_full,sst_full,sam_full,asl_full,nino_full,dmi_full))
     dx = np.array((dssie_full,dpsie_full,dtas_full,dsst_full,dsam_full,dasl_full,dnino_full,ddmi_full))
-    tau,R,error_tau,error_R,noise = compute_liang_nvar(xx,dx,dt,n_iter)
+    tau,R,error_tau,error_R = compute_liang_nvar(xx,dx,dt,n_iter)
     if save_var == True:
-        np.save(filename,[tau,R,error_tau,error_R,noise])
+        np.save(filename,[tau,R,error_tau,error_R])
 else:
-    tau,R,error_tau,error_R,noise = np.load(filename,allow_pickle=True)
+    if season == 'SON':
+        tau,R,error_tau,error_R = np.load(filename,allow_pickle=True)
+    else:
+        tau,R,error_tau,error_R,notused = np.load(filename,allow_pickle=True)
 
 # Compute statistical significance based on the confidence interval
 sig_tau = np.zeros((nvar,nvar))
@@ -265,10 +268,10 @@ for j in np.arange(nvar):
             tau_plot.add_patch(Rectangle((i+0.05,j+0.2),0.9,0.6,fill=False,edgecolor='blue',linewidth=3))
 tau_plot.set_xticklabels(tau_plot.get_xmajorticklabels(),fontsize=20)
 tau_plot.xaxis.set_ticks_position('top')
-tau_plot.set_xlabel('TO...',loc='left',fontsize=20)
+# tau_plot.set_xlabel('TO...',loc='left',fontsize=20)
 tau_plot.xaxis.set_label_position('top')
 tau_plot.set_yticklabels(tau_plot.get_ymajorticklabels(),fontsize=20)
-tau_plot.set_ylabel('FROM...',loc='top',fontsize=20)
+# tau_plot.set_ylabel('FROM...',loc='top',fontsize=20)
                    
 # Matrix of R
 R_annotations = np.round(R,2)
